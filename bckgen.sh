@@ -58,7 +58,9 @@ echo "Created deployer script."
 
 backup_maker_basename=$(basename "$BACKUP_MAKER_FILEPATH")
 
-echo "# Run this script to call the main BackupMaker script. Third argument is backup directory name. Fourth argument is debug_flag(0 or 1)." >> $BACKUP_SCRIPT_DEPLOYER_FILENAME
+echo "# Run this script to call the main BackupMaker script." >> $BACKUP_SCRIPT_DEPLOYER_FILENAME
+echo "# Expected arguments: bckmaker [input_file_filepath] [output_file_filepath] [backup_dirname] [debug_flag] [preserve_dest_gitfiles_flag] [skip_source_gitfiles_flag]." >> $BACKUP_SCRIPT_DEPLOYER_FILENAME
+
 echo $backup_maker_basename "$(readlink -f $INPUT_INFO_FILE_FILENAME)" "$(readlink -f $OUTPUT_INFO_FILE_FILENAME) $DEFAULT_BACKUP_DIRNAME 0" >> $BACKUP_SCRIPT_DEPLOYER_FILENAME
 
 echo "Success."

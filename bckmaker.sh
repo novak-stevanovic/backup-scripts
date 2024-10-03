@@ -70,8 +70,19 @@ function execute_without_output() {
 	eval $command
 }
 
+function validate_flag() {
+	readonly VAL=$1
+	if [[ $VAL -eq 0 ]] || [[ $VAL -eq 1 ]]; then
+		echo 1
+	else
+		echo 0
+	fi
+}
+
+readonly EXPECTED_ARG_COUNT=6
+
 function validate_arguments() {
-	if [[ $# -eq 4 ]]; then
+	if [[ $# -eq $EXPECTED_ARG_COUNT ]]; then
 		if [[ ! -f $1 ]]; then
 			exit_with_error "Invalid input info file. Exiting."
 		fi
@@ -81,14 +92,29 @@ function validate_arguments() {
 		fi
 
 		if [[ $(echo "$3" | grep -E "/") ]]; then
-			exit_with_error "Invalid backup directory name. It must not be a path."
+			exit_with_error "Invalid backup directory name. It must not be a path. Exiting."
+		fi
+
+		if [[ $(validate_flag $4) -ne 1 ]]; then
+			exit_with_error "Invalid debug mode flag. It must be 0 or 1. Exiting."
+		fi
+
+		if [[ $(validate_flag $5) -ne 1 ]]; then
+			exit_with_error "Invalid preserve destination gitfiles flag. It must be 0 or 1. Exiting."
+		fi
+
+		if [[ $(validate_flag $6) -ne 1 ]]; then
+			exit_with_error "Invalid remove input gitfiles flag. It must be 0 or 1. Exiting."
 		fi
 
 		print_debug "Input info file validated: $1"
 		print_debug "Output info file validated: $2"
-		print_debug "Resulting directory name validated: $3"
+		print_debug "Backup directory name validated: $3"
+		print_debug "Debug mode flag validated: $4"
+		print_debug "Preserve destination gitfiles flag validated: $5"
+		print_debug "Remove source gitfiles flag validated: $6"
 	else
-		exit_with_error "Invalid input. Expected input: arg1 - input info filepath | arg2 - output info filepath | arg3 - backup directory name | arg4 - debug flag(0 or 1)."
+		exit_with_error "Invalid input. Expected input: bckmaker [input_file_filepath] [output_file_filepath] [backup_dirname] [debug_flag] [preserve_dest_gitfiles_flag] [skip_src_gitfiles_flag]. Exiting."
 	fi
 }
 
@@ -106,12 +132,13 @@ fi
 print_important "Validating provided arguments..."
 validate_arguments "$@"
 
-
 readonly SCRIPT_DIRECTORY="$(dirname $BASH_SOURCE)"
 readonly INPUT_INFO_FILEPATH=$1
 readonly OUTPUT_INFO_FILEPATH=$2
 readonly BACKUP_DIRNAME=$3
 readonly DEBUG_ENABLED=$4
+readonly PRESERVE_DESTINATION_GITFILES=$5
+readonly REMOVE_INPUT_GITFILES=$6
 created_files=""
 created_temp_files=""
 
@@ -126,6 +153,18 @@ if [[ $DEBUG_ENABLED -eq 1 ]]; then
 	print_setting "Debug Mode: ENABLED."
 else
 	print_setting "Debug Mode: DISABLED."
+fi
+
+if [[ $PRESERVE_DESTINATION_GITFILES -eq 1 ]]; then
+	print_setting "Preserve destination gitfiles: ENABLED."
+else
+	print_setting "Preserve destination gitfiles: DISABLED."
+fi
+
+if [[ $REMOVE_INPUT_GITFILES -eq 1 ]]; then
+	print_setting "Remove input gitfiles: ENABLED."
+else
+	print_setting "Remove input gitfiles: DISABLED."
 fi
 
 function is_line_comment() {
@@ -199,6 +238,17 @@ chmod +rwx $TEMP_DIRECTORY_PATH
 print_debug "Created temporary directory: $TEMP_DIRECTORY_PATH."
 created_temp_files+="$TEMP_DIRECTORY_PATH "
 
+function remove_input_gitfiles() {
+	gitfile_paths="$(find $TEMP_DIRECTORY_PATH)"
+
+	for file in $gitfile_paths; do
+		if [[ "$file" == *".git" || "$file" == *".gitignore" ]]; then
+			print_debug "Removing gitfile: $file."
+			rm -rf $file
+		fi
+	done
+}
+
 function copy_input_filepaths_into_temp_dir() {
 	cd $TEMP_DIRECTORY_PATH
 
@@ -216,6 +266,10 @@ function copy_input_filepaths_into_temp_dir() {
 		fi
 	done
 
+	if [[ $REMOVE_INPUT_GITFILES -eq 1 ]]; then
+		remove_input_gitfiles
+	fi
+
 	cd $SCRIPT_DIRECTORY
 }
 
@@ -229,20 +283,24 @@ function redistribute_temp_backup() {
 		output_dir="$dir/$BACKUP_DIRNAME" 
 
 		if [[ -d $output_dir ]]; then
-			if [[ -w $output_dir ]]; then
-				print_debug "Removing existing backup in: $dir."
-				rm -rf "$output_dir"
+			if [[ -w $output_dir ]] && [[ -r $output_dir ]]; then
+				if [[ $PRESERVE_DESTINATION_GITFILES -eq 1 ]]; then
+					print_debug "Removing existing backup in: $output_dir. Gitfiles are preserved."
+					find $output_dir -maxdepth 1 -mindepth 1 -not -name ".gitignore" -not -name ".git" -exec rm -rf {} \;
+				else
+					print_debug "Removing existing backup in: $output_dir. Gitfiles are not preserved."
+					find $output_dir -maxdepth 1 -mindepth 1 -exec rm -rf {} \;
+				fi
 			else
-				exit_with_error "No permission to remove: $output_dir. Exiting."
+				exit_with_error "No permission to remove or read: $output_dir. Exiting."
 			fi
+		else
+			mkdir $output_dir
+			print_debug "Created new backup directory in: $dir."
 		fi
 
-		mkdir $output_dir
-		print_debug "Created new backup directory in: $dir."
 		created_files+="$output_dir "
-
 		print_important "Creating backup in: $dir."
-
 		execute_with_output "cp -r $TEMP_DIRECTORY_PATH/. $output_dir"
 		
 	done
