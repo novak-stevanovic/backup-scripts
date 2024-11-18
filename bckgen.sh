@@ -8,18 +8,18 @@ readonly BACKUP_MAKER_FILEPATH="/usr/local/bin/bckmaker"
 readonly DEFAULT_BACKUP_DIRNAME="BM_BACKUP"
 
 if [[ ! -r $CURRENT_DIR ]] || [[ ! -w $CURRENT_DIR ]]; then
-	echo "No read or write permissions in current directory. Run script with sudo or run from another directory. Exiting"
-	exit 1
+    echo "No read or write permissions in current directory. Run script with sudo or run from another directory. Exiting"
+    exit 1
 fi
 
 if [[ ! -f $BACKUP_MAKER_FILEPATH ]]; then
-	echo "Backup maker not found. Exiting."
-	exit 1
+    echo "Backup maker not found. Exiting."
+    exit 1
 fi
 
 if [[ ! -f $INPUT_INFO_FILE_FILENAME ]]; then
-	touch $INPUT_INFO_FILE_FILENAME
-	echo "Created input file."
+    touch $INPUT_INFO_FILE_FILENAME
+    echo "Created input file."
     cat <<EOF >> "$INPUT_INFO_FILE_FILENAME"
 # Comments are denoted by lines containing "#".
 # Files or directories for backup should be added in each new line, as follows:
@@ -33,8 +33,8 @@ EOF
 fi
 
 if [[ ! -f $OUTPUT_INFO_FILE_FILENAME ]]; then
-	touch $OUTPUT_INFO_FILE_FILENAME
-	echo "Created output file."
+    touch $OUTPUT_INFO_FILE_FILENAME
+    echo "Created output file."
     cat <<EOF >> "$OUTPUT_INFO_FILE_FILENAME"
 # Comments are denoted by lines containing "#".
 # Directories for backup should be added in each new line, as follows:
@@ -48,8 +48,8 @@ EOF
 fi
 
 if [[ -f $BACKUP_SCRIPT_DEPLOYER_FILENAME ]]; then
-	echo "Removed deployer script."
-	rm $BACKUP_SCRIPT_DEPLOYER_FILENAME
+    echo "Removed deployer script."
+    rm $BACKUP_SCRIPT_DEPLOYER_FILENAME
 fi
 
 touch $BACKUP_SCRIPT_DEPLOYER_FILENAME
